@@ -164,6 +164,8 @@
 </div>
 
 <script>
+
+    const BOT_URL = "https://t.me/Telebothostwebbot?start="; 
     const tg = window.Telegram.WebApp;
     const BOT_URL = tg.initDataUnsafe.start_param ? `https://t.me/${tg.initDataUnsafe.start_param.split(' ')[0]}?start=` : '';
     let isAdmin = false;
