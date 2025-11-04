@@ -1,0 +1,153 @@
+/* Command: @on_web_app_data */ 
+
+let ADMIN_ID = 123456789; // <-- ১. এটি আপনার সঠিক টেলিগ্রাম ইউজার আইডি (শুধু সংখ্যা) হতে হবে!
+
+try {
+    let payload = JSON.parse(data); 
+    
+    // ২. নিশ্চিত করুন যে এই প্রোপার্টিগুলো একবার /admin_init_config দ্বারা সেট করা হয়েছে
+    let settings = Bot.getProperty('settings') || {};
+    let dynamicTasks = Bot.getProperty('dynamic_tasks') || [];
+    let bannedUsers = Bot.getProperty('banned_users') || [];
+    let withdrawalRequests = Bot.getProperty('withdrawal_requests') || [];
+
+    let is_admin = user.id.toString() === ADMIN_ID.toString();
+    let responseData = { is_admin: is_admin };
+
+    // --- ব্যান চেক (ইউজার অ্যাকশন ব্লক) ---
+    if (bannedUsers.includes(user.id) && !is_admin) {
+        responseData.is_banned = true;
+        responseData.error = "🚫 আপনি বর্তমানে ব্লকড। আপনি অ্যাপটি ব্যবহার করতে পারবেন না।";
+    }
+
+    // --- অ্যাকশন হ্যান্ডলিং ---
+    if (payload.action === 'submit_withdrawal') {
+        let coinsRes = Libs.ResourcesLib.userRes('coins');
+        let amount = parseInt(payload.amount);
+        
+        if (amount < settings.min_withdrawal) {
+            responseData.error = "❌ অপর্যাপ্ত কয়েন।";
+        } else if (coinsRes.value() < amount) {
+            responseData.error = "❌ আপনার ব্যালেন্সে যথেষ্ট কয়েন নেই।";
+        } else {
+            // রিকোয়েস্ট জমা দেওয়া
+            withdrawalRequests.push({ user_id: user.id, username: user.username || 'N/A', amount: amount, method: payload.method, address: payload.address, timestamp: Date.now(), status: "Pending" });
+            Bot.setProperty('withdrawal_requests', withdrawalRequests, 'JSON');
+            coinsRes.remove(amount); 
+            responseData.success = "✅ উইথড্রয়াল রিকোয়েস্ট সফল হয়েছে।";
+        }
+    } 
+    else if (payload.action === 'complete_task') {
+        let taskId = parseInt(payload.task_id);
+        let task = dynamicTasks.find(t => t.id === taskId);
+        let coinsRes = Libs.ResourcesLib.userRes('coins');
+        let userReferrals = Libs.ResourcesLib.userRes('referrals').value() || 0;
+
+        if (task && !User.get('task_done_' + taskId)) {
+            if (userReferrals >= task.requires_ref) {
+                User.set('task_done_' + taskId, true, 'Boolean');
+                coinsRes.add(task.reward);
+                responseData.success = `✅ টাস্ক "${task.name}" সম্পন্ন হয়েছে! আপনি ${task.reward} কয়েন পেয়েছেন।`;
+            } else {
+                 responseData.error = `❌ টাস্কটি সম্পন্ন করার জন্য আপনার ${task.requires_ref} জন রেফারেল প্রয়োজন।`;
+            }
+        } else {
+            responseData.error = "❌ এই টাস্কটি ইতিমধ্যেই সম্পন্ন করা হয়েছে বা টাস্ক আইডি ভুল।";
+        }
+    }
+    else if (payload.action === 'process_withdrawal' && is_admin) {
+        let requestIndex = payload.index;
+        let action = payload.sub_action; 
+        
+        if (action === 'reject') {
+            let rejectedCoinsRes = Libs.ResourcesLib.anotherUserRes(withdrawalRequests[requestIndex].user_id, 'coins');
+            rejectedCoinsRes.add(withdrawalRequests[requestIndex].amount);
+            responseData.success = `❌ Withdrawal ID ${withdrawalRequests[requestIndex].user_id} Rejected and refunded.`;
+        } else if (action === 'approve') {
+             responseData.success = `✅ Withdrawal ID ${withdrawalRequests[requestIndex].user_id} Approved.`;
+        }
+        withdrawalRequests.splice(requestIndex, 1);
+        Bot.setProperty('withdrawal_requests', withdrawalRequests, 'JSON');
+    }
+    else if (payload.action === 'manage_task' && is_admin) {
+        let tasks = dynamicTasks;
+        
+        if (payload.operation === 'add') {
+            let newId = tasks.length > 0 ? Math.max(...tasks.map(t => t.id)) + 1 : 1;
+            tasks.push({ id: newId, name: payload.name, reward: payload.reward, requires_ref: payload.requires_ref });
+            responseData.success = "✅ নতুন টাস্ক যোগ হয়েছে।";
+        } else if (payload.operation === 'delete') {
+            tasks = tasks.filter(t => t.id !== parseInt(payload.task_id));
+            responseData.success = "✅ টাস্ক মুছে ফেলা হয়েছে।";
+        }
+        
+        Bot.setProperty('dynamic_tasks', tasks, 'JSON');
+        dynamicTasks = tasks; 
+    }
+    else if ((payload.action === 'ban_user' || payload.action === 'unban_user') && is_admin) {
+        let targetUserId = parseInt(payload.user_id);
+        if (payload.action === 'ban_user' && !bannedUsers.includes(targetUserId)) {
+            bannedUsers.push(targetUserId);
+            responseData.success = `🚫 User ID ${targetUserId} ব্লকড।`;
+        } else if (payload.action === 'unban_user' && bannedUsers.includes(targetUserId)) {
+            bannedUsers = bannedUsers.filter(id => id !== targetUserId);
+            responseData.success = `✅ User ID ${targetUserId} আনব্লকড।`;
+        }
+        Bot.setProperty('banned_users', bannedUsers, 'JSON');
+    }
+    else if (payload.action === 'update_settings' && is_admin) {
+        Bot.setProperty('settings', payload.settings, 'JSON');
+        responseData.success = "✅ সেটিংস সফলভাবে আপডেট করা হয়েছে!";
+    }
+    else if (payload.action === 'fetch_user_stats' && is_admin) {
+        let targetUserId = parseInt(payload.user_id);
+        // ... (fetch_user_stats লজিক) ...
+        // [নিশ্চিত করুন যে এখানে কোনো ত্রুটি নেই, বিশেষ করে anotherUserRes বা User.get কলগুলিতে]
+        let targetCoinsRes = Libs.ResourcesLib.anotherUserRes(targetUserId, 'coins');
+        let targetReferralsRes = Libs.ResourcesLib.anotherUserRes(targetUserId, 'referrals');
+        
+        let targetUserStats = { /* ... stat data ... */ };
+        
+        responseData.user_stats = targetUserStats;
+        responseData.success = `🔍 ইউজার ID ${targetUserId} এর ডেটা সফলভাবে ফেচ করা হয়েছে।`;
+    }
+
+
+    // --- চূড়ান্ত ডেটা তৈরি (স্ক্রিন রেন্ডারিং এর জন্য) ---
+    
+    let user_info = {
+        id: user.id,
+        coins: Libs.ResourcesLib.userRes('coins').value() || 0,
+        referrals: Libs.ResourcesLib.userRes('referrals').value() || 0,
+        referrer_id: User.get('referrer_id') || 'N/A'
+    };
+
+    let userTasksStatus = {};
+    dynamicTasks.forEach(task => {
+        userTasksStatus[task.id] = User.get('task_done_' + task.id) || false;
+    });
+
+    responseData.user_info = user_info;
+    responseData.user_info.tasks_status = userTasksStatus;
+    responseData.settings = settings;
+    responseData.dynamic_tasks = dynamicTasks;
+
+    if (is_admin) {
+        responseData.admin_data = {
+            settings: settings,
+            dynamic_tasks: dynamicTasks,
+            banned_users: bannedUsers,
+            withdrawal_requests: withdrawalRequests
+        };
+    }
+    
+    // --- ৩. ফাইনাল JSON আউটপুট: এটি নিশ্চিতভাবে কাজ করা উচিত ---
+    Bot.sendMessage(JSON.stringify(responseData), { is_json: true });
+
+} catch (error) {
+    // TBL লজিকের মধ্যে কোনো ত্রুটি হলে এই ব্লকটি চলবে
+    Bot.sendMessage(`[FATAL TBL ERROR] Execution failed for ${user.id}: ${error}`);
+    
+    // error হলেও একটি valid JSON রেসপন্স পাঠানো
+    Bot.sendMessage(JSON.stringify({ error: `TBL অভ্যন্তরীণ ত্রুটি: ${error}` }), { is_json: true });
+}
