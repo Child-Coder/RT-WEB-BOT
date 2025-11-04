@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TBL Mini App Dashboard</title>
+    <title>TBL Mini App Admin & Task Panel</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         /* TBL Theme Integration and Basic Styles */
@@ -78,19 +78,9 @@
         <h2>📝 আজকের টাস্কসমূহ</h2>
         <p>প্রতিটি টাস্ক সম্পন্ন করলে আপনি কয়েন পাবেন:</p>
         
-        <div class="stat-item">
-            <span>১. আমাদের চ্যানেলে জয়েন করুন</span>
-            <span id="task1-status" class="stat-value"></span>
-            <button id="task1-btn" onclick="submitTask('1')" class="nav-button" style="margin: 0; padding: 5px 10px;">সম্পন্ন</button>
+        <div id="task-list-container">
+            <p style="text-align: center;">টাস্ক লোড হচ্ছে...</p>
         </div>
-        
-        <div class="stat-item">
-            <span>২. ৩ জন সফল রেফারেল আনুন</span>
-            <span id="task2-status" class="stat-value"></span>
-            <button id="task2-btn" onclick="submitTask('2')" class="nav-button" style="margin: 0; padding: 5px 10px;">সম্পন্ন</button>
-        </div>
-        
-        <p style="margin-top: 15px;">** টাস্ক ২ স্ট্যাটাস আপনার মোট রেফারেলের ওপর নির্ভর করবে।</p>
     </div>
 
     <div id="withdraw" class="view panel">
@@ -106,8 +96,6 @@
             <input type="text" id="withdraw-address" placeholder="বিকাশ/নগদ নম্বর বা USDT অ্যাড্রেস">
             <button class="nav-button active" onclick="submitWithdrawal()" style="width: 100%;">সাবমিট রিকোয়েস্ট</button>
         </div>
-        
-        <h3 style="margin-top: 20px;">আপনার উইথড্রয়াল হিস্টোরি (TBL এ নেই, তাই এখানে দেখাব না)</h3>
     </div>
 
     <div id="leaderboard" class="view panel">
@@ -115,7 +103,7 @@
         <p style="color: var(--tg-theme-hint-color);">TBL এ সরাসরি সব ইউজার লোড করা যায় না, তাই এটি শুধুমাত্র টপ ৩ জন দেখাবে (বা টিবিএল লজিক অনুসারে ডামি ডেটা):</p>
         <table class="admin-table">
             <thead><tr><th>র‍্যাঙ্ক</th><th>ইউজার আইডি</th><th>মোট রেফারেল</th></tr></thead>
-            <tbody>
+            <tbody id="leaderboard-body">
                 <tr><td>১</td><td>10101010</td><td>50</td></tr>
                 <tr><td>২</td><td>20202020</td><td>35</td></tr>
                 <tr><td>৩</td><td><span id="lb-self-id"></span> (আপনি)</td><td><span id="lb-self-refs"></span></td></tr>
@@ -131,17 +119,39 @@
 
     <div id="admin" class="view panel">
         <h2>👑 এডমিন কন্ট্রোল প্যানেল</h2>
-        <h3 style="color: var(--tg-theme-link-color);">সিস্টেম সেটিংস পরিবর্তন</h3>
+        
+        <h3 style="color: var(--tg-theme-link-color);">🔍 ইউজার স্ট্যাটাস দেখুন ও ব্লক করুন</h3>
+        <div class="withdraw-form" style="border: 1px dashed var(--tg-theme-hint-color); padding: 10px;">
+            <input type="number" id="lookup-user-id" placeholder="ইউজার আইডি দিন (যেমন: 123456789)">
+            <button class="nav-button active" onclick="fetchUserStats()" style="width: 100%;">ইউজার ডেটা ফেচ করুন</button>
+            <div id="user-stats-display" style="margin-top: 10px;"></div>
+        </div>
+        
+        <h3 style="color: var(--tg-theme-link-color); margin-top: 20px;">📝 ডাইনামিক টাস্ক ম্যানেজমেন্ট</h3>
+        <p>বর্তমান টাস্ক তালিকা:</p>
+        <table class="admin-table">
+            <thead><tr><th>ID</th><th>টাস্ক নাম</th><th>রিওয়ার্ড</th><th>রেফ. প্রয়োজন</th><th>অ্যাকশন</th></tr></thead>
+            <tbody id="admin-task-list">
+                </tbody>
+        </table>
+        
+        <h4 style="margin-top: 20px;">নতুন টাস্ক যোগ করুন:</h4>
+        <div class="withdraw-form" style="border: 1px dashed var(--tg-theme-hint-color); padding: 10px;">
+            <input type="text" id="new-task-name" placeholder="টাস্কের নাম">
+            <input type="number" id="new-task-reward" placeholder="কয়েন রিওয়ার্ড (যেমন: 100)">
+            <input type="number" id="new-task-ref-req" placeholder="রেফারেল প্রয়োজন (যেমন: 3)">
+            <button class="nav-button active" onclick="manageTask('add')" style="width: 100%;">টাস্ক যোগ করুন</button>
+        </div>
+        
+        <h3 style="color: var(--tg-theme-link-color); margin-top: 20px;">⚙️ সিস্টেম সেটিংস পরিবর্তন</h3>
         <div class="withdraw-form">
             <input type="number" id="admin-ref-bonus" placeholder="রেফারেল বোনাস (কয়েন)">
             <input type="number" id="admin-min-withdraw" placeholder="সর্বনিম্ন উইথড্রয়াল (কয়েন)">
-            <input type="number" id="admin-task1-reward" placeholder="টাস্ক ১ রিওয়ার্ড">
-            <input type="number" id="admin-task2-reward" placeholder="টাস্ক ২ রিওয়ার্ড">
             <input type="text" id="admin-support-link" placeholder="সাপোর্ট লিংক">
             <button class="nav-button active" onclick="updateAdminSettings()" style="width: 100%;">সেটিংস সেভ করুন</button>
         </div>
         
-        <h3 style="color: var(--tg-theme-link-color); margin-top: 20px;">পেন্ডিং উইথড্রয়াল রিকোয়েস্ট</h3>
+        <h3 style="color: var(--tg-theme-link-color); margin-top: 20px;">💰 পেন্ডিং উইথড্রয়াল রিকোয়েস্ট</h3>
         <table class="admin-table">
             <thead>
                 <tr><th>ইউজার আইডি</th><th>অ্যামাউন্ট</th><th>মেথড</th><th>অ্যাড্রেস</th><th>স্ট্যাটাস</th><th>অ্যাকশন</th></tr>
@@ -157,7 +167,8 @@
     const tg = window.Telegram.WebApp;
     const BOT_URL = tg.initDataUnsafe.start_param ? `https://t.me/${tg.initDataUnsafe.start_param.split(' ')[0]}?start=` : '';
     let isAdmin = false;
-    
+    let globalData = {}; 
+
     tg.ready();
     tg.expand();
     
@@ -167,11 +178,6 @@
         document.getElementById(viewId).style.display = 'block';
         document.querySelectorAll('.nav-button').forEach(btn => btn.classList.remove('active'));
         document.querySelector(`[onclick="showView('${viewId}')"]`).classList.add('active');
-
-        // URL থেকে এডমিন ভিউ রিকোয়েস্ট করা হলে তা দেখান
-        if (viewId === 'admin') {
-            document.getElementById('admin-nav-btn').click();
-        }
     }
 
     // --- DATA COMMUNICATION ---
@@ -183,14 +189,12 @@
         tg.sendData(requestPayload);
     }
     
-    tg.onEvent('mainButtonClicked', () => sendDataToBot('fetch_data'));
-    
     tg.onEvent('onReceivedData', (data) => {
         document.getElementById('loading').style.display = 'none';
-        document.getElementById('nav-bar').style.display = 'flex';
         
         try {
             const botData = JSON.parse(data.data);
+            globalData = botData;
             
             if (botData.error) {
                 showAlert(botData.error, 'error');
@@ -198,7 +202,10 @@
                 showAlert(botData.success, 'success');
             }
 
-            // ডেটা রেন্ডার করুন
+            if(botData.is_banned) {
+                 return;
+            }
+
             renderData(botData);
 
         } catch (e) {
@@ -209,7 +216,8 @@
 
     // --- RENDER DATA ---
     function renderData(data) {
-        // --- সাধারণ ব্যবহারকারী ডেটা ---
+        document.getElementById('nav-bar').style.display = 'flex';
+        
         const userInfo = data.user_info;
         const settings = data.settings;
 
@@ -217,51 +225,85 @@
         document.getElementById('acc-coins').textContent = userInfo.coins;
         document.getElementById('acc-referrals').textContent = userInfo.referrals;
         document.getElementById('acc-ref-link').textContent = `${BOT_URL}${userInfo.id}`;
-        
         document.getElementById('lb-self-id').textContent = userInfo.id;
         document.getElementById('lb-self-refs').textContent = userInfo.referrals;
 
-        // টাস্ক স্ট্যাটাস
-        document.getElementById('task1-status').textContent = userInfo.task_1_done ? `✅ Done (Earned ${settings.task_1_reward} Coin)` : `❌ Pending (Reward: ${settings.task_1_reward} Coin)`;
-        document.getElementById('task1-btn').style.display = userInfo.task_1_done ? 'none' : 'inline';
+        renderTasksView(data.dynamic_tasks, userInfo);
         
-        document.getElementById('task2-status').textContent = userInfo.task_2_done ? `✅ Done (Earned ${settings.task_2_reward} Coin)` : `❌ Pending (Requires 3 Refs, Have ${userInfo.referrals}) (Reward: ${settings.task_2_reward} Coin)`;
-        document.getElementById('task2-btn').style.display = (userInfo.task_2_done || userInfo.referrals < 3) ? 'none' : 'inline';
-        
-        // উইথড্রয়াল সেটিংস
         document.getElementById('min-withdraw-amount').textContent = settings.min_withdrawal;
-        
-        // সাপোর্ট লিংক
         document.getElementById('support-link').href = settings.support_link;
 
-        // --- এডমিন ডেটা ---
         if (data.is_admin) {
             isAdmin = true;
             document.getElementById('admin-nav-btn').style.display = 'inline';
             
-            // সেটিংস ফিল্ডে ডেটা লোড করুন
             document.getElementById('admin-ref-bonus').value = settings.referral_bonus;
             document.getElementById('admin-min-withdraw').value = settings.min_withdrawal;
-            document.getElementById('admin-task1-reward').value = settings.task_1_reward;
-            document.getElementById('admin-task2-reward').value = settings.task_2_reward;
             document.getElementById('admin-support-link').value = settings.support_link;
             
-            // উইথড্রয়াল রিকোয়েস্ট লোড করুন
+            renderAdminTasks(data.admin_data.dynamic_tasks);
             renderWithdrawalRequests(data.admin_data.withdrawal_requests);
-
-            // URL প্যারামিটার চেক করে এডমিন প্যানেল দেখান
+            
             const urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.get('view') === 'admin') {
+            if (urlParams.get('view') === 'admin' && !document.querySelector('.view:visible')) {
                 showView('admin');
-            } else {
-                showView('account'); // ডিফল্ট ভিউ 
+            } else if (!document.querySelector('.view:visible')) {
+                showView('account');
             }
-        } else {
+        } else if (!document.querySelector('.view:visible')) {
             showView('account');
         }
     }
-    
+
+    function renderTasksView(tasks, userInfo) {
+        const container = document.getElementById('task-list-container');
+        container.innerHTML = '';
+        
+        tasks.forEach(task => {
+            const isDone = userInfo.tasks_status[task.id];
+            const canComplete = userInfo.referrals >= task.requires_ref;
+            
+            let statusText = isDone ? '✅ সম্পন্ন' : '❌ বাকি';
+            let buttonText = isDone ? 'প্রাপ্ত' : 'সম্পন্ন করুন';
+            
+            if (task.requires_ref > 0 && !isDone) {
+                statusText += ` (${task.requires_ref} রেফ. প্রয়োজন, আপনার ${userInfo.referrals})`;
+                buttonText = canComplete ? 'সম্পন্ন করুন' : `রেফ. কম`;
+            }
+
+            container.innerHTML += `
+                <div class="stat-item" style="flex-wrap: wrap;">
+                    <span style="width: 100%; font-weight: bold; margin-bottom: 5px;">${task.name} (${task.reward} কয়েন)</span>
+                    <span class="stat-value" style="color: ${isDone ? 'green' : 'red'};">${statusText}</span>
+                    <button 
+                        class="nav-button" 
+                        style="margin: 0; padding: 5px 10px;"
+                        onclick="submitTask(${task.id})" 
+                        ${isDone || !canComplete ? 'disabled' : ''}>
+                        ${buttonText}
+                    </button>
+                </div>
+            `;
+        });
+    }
+
     // --- ADMIN SPECIFIC RENDERING ---
+    function renderAdminTasks(tasks) {
+        const tbody = document.getElementById('admin-task-list');
+        tbody.innerHTML = '';
+        
+        tasks.forEach(task => {
+            const row = tbody.insertRow();
+            row.insertCell().textContent = task.id;
+            row.insertCell().textContent = task.name;
+            row.insertCell().textContent = task.reward;
+            row.insertCell().textContent = task.requires_ref;
+            
+            const actionCell = row.insertCell();
+            actionCell.innerHTML = `<button class="nav-button" style="padding: 3px 8px; background: red; color: white;" onclick="manageTask('delete', ${task.id})">মুছুন</button>`;
+        });
+    }
+    
     function renderWithdrawalRequests(requests) {
         const tbody = document.getElementById('admin-withdraw-requests');
         tbody.innerHTML = '';
@@ -280,20 +322,47 @@
             row.insertCell().textContent = req.status;
             
             const actionCell = row.insertCell();
-            actionCell.innerHTML = `<button class="nav-button" style="padding: 3px 8px;" onclick="processWithdrawal(${index}, 'approve')">Approve</button>`;
+            actionCell.innerHTML = `
+                <button class="nav-button" style="padding: 3px 8px; background: green; color: white; margin-right: 5px;" onclick="processWithdrawal(${index}, 'approve')">Approve</button>
+                <button class="nav-button" style="padding: 3px 8px; background: red; color: white;" onclick="processWithdrawal(${index}, 'reject')">Reject</button>
+            `;
         });
+    }
+    
+    function renderUserStats(stats) {
+        const isBanned = stats.is_banned;
+        
+        let taskListHtml = globalData.dynamic_tasks.map(task => {
+            const status = stats.tasks_status[task.id] ? '✅ Done' : '❌ Pending';
+            return `<div>** টাস্ক ID ${task.id} (${task.name}):** ${status}</div>`;
+        }).join('');
+
+        document.getElementById('user-stats-display').innerHTML = `
+            <div class="panel">
+                <div class="stat-item"><span>ইউজার আইডি:</span> <span class="stat-value">${stats.id}</span></div>
+                <div class="stat-item"><span>বর্তমান কয়েন:</span> <span class="stat-value">${stats.coins}</span></div>
+                <div class="stat-item"><span>মোট রেফারেল:</span> <span class="stat-value">${stats.referrals}</span></div>
+                <div class="stat-item"><span>রেফারার আইডি:</span> <span class="stat-value">${stats.referrer_id}</span></div>
+                <div class="stat-item"><span>ব্যান স্ট্যাটাস:</span> <span class="stat-value" style="color: ${isBanned ? 'red' : 'green'};">${isBanned ? '🚫 BANNED' : '✅ Active'}</span></div>
+                <div style="margin-top: 10px;">${taskListHtml}</div>
+            </div>
+            <div style="text-align: center;">
+                <button class="nav-button active" style="background: ${isBanned ? 'green' : 'red'};" onclick="${isBanned ? `unbanUser(${stats.id})` : `banUser(${stats.id})`}">
+                    ${isBanned ? 'আনব্লক করুন' : 'ইউজার ব্লক করুন'}
+                </button>
+            </div>
+        `;
     }
 
     // --- FORM SUBMISSION HANDLERS ---
+    
     function submitWithdrawal() {
         const amount = parseInt(document.getElementById('withdraw-amount').value);
         const method = document.getElementById('withdraw-method').value;
         const address = document.getElementById('withdraw-address').value.trim();
-        const currentCoins = parseInt(document.getElementById('acc-coins').textContent);
-        const minWithdrawal = parseInt(document.getElementById('min-withdraw-amount').textContent);
-
-        if (!amount || amount < minWithdrawal || amount > currentCoins || !address) {
-            showAlert(`উইথড্রয়াল অ্যামাউন্ট ${minWithdrawal} এর বেশি হতে হবে এবং আপনার বর্তমান ব্যালেন্সের মধ্যে থাকতে হবে।`, 'error');
+        
+        if (!amount || amount <= 0 || !address) {
+            showAlert(`উইথড্রয়াল অ্যামাউন্ট এবং অ্যাড্রেস আবশ্যক।`, 'error');
             return;
         }
         
@@ -301,33 +370,69 @@
     }
 
     function submitTask(taskId) {
-        // TBL লজিক টাস্ক ২-এর জন্য রেফারেল চেক করবে।
         sendDataToBot('complete_task', { task_id: taskId });
     }
 
     function updateAdminSettings() {
-        if (!isAdmin) {
-            showAlert("❌ এডমিন অ্যাক্সেস নেই।", 'error');
-            return;
-        }
+        if (!isAdmin) { return; }
         
         const newSettings = {
             referral_bonus: parseInt(document.getElementById('admin-ref-bonus').value) || 0,
             min_withdrawal: parseInt(document.getElementById('admin-min-withdraw').value) || 0,
-            task_1_reward: parseInt(document.getElementById('admin-task1-reward').value) || 0,
-            task_2_reward: parseInt(document.getElementById('admin-task2-reward').value) || 0,
             support_link: document.getElementById('admin-support-link').value.trim()
         };
 
         sendDataToBot('update_settings', { settings: newSettings });
     }
     
-    // Admin action to approve/reject withdrawal (requires TBL update)
-    function processWithdrawal(index, action) {
-        // এই ফাংশনটি কাজ করার জন্য @on_web_app_data-এ একটি নতুন 'process_withdrawal' অ্যাকশন যুক্ত করতে হবে।
-        showAlert(`Admin action for index ${index}, action ${action} sent. TBL logic required.`, 'success');
+    function fetchUserStats() {
+        const userId = parseInt(document.getElementById('lookup-user-id').value);
+        if (!userId) {
+            showAlert("❌ সঠিক ইউজার আইডি দিন।", 'error');
+            return;
+        }
+        document.getElementById('user-stats-display').innerHTML = 'ডেটা লোড হচ্ছে...';
+        sendDataToBot('fetch_user_stats', { user_id: userId });
+    }
+    
+    function banUser(userId) {
+        sendDataToBot('ban_user', { user_id: userId });
+        setTimeout(() => sendDataToBot('fetch_user_stats', { user_id: userId }), 1000);
+    }
+    
+    function unbanUser(userId) {
+        sendDataToBot('unban_user', { user_id: userId });
+        setTimeout(() => sendDataToBot('fetch_user_stats', { user_id: userId }), 1000);
+    }
+    
+    // --- New Withdrawal Processing Handler ---
+    function processWithdrawal(index, sub_action) {
+        if (!isAdmin) { return; }
+        if (!confirm(`আপনি কি এই রিকোয়েস্টটি ${sub_action === 'approve' ? 'Approve' : 'Reject'} করতে নিশ্চিত?`)) return;
+        
+        sendDataToBot('process_withdrawal', { index: index, sub_action: sub_action });
     }
 
+    function manageTask(operation, taskId = null) {
+        let payload = { operation: operation };
+        
+        if (operation === 'add') {
+            payload.name = document.getElementById('new-task-name').value.trim();
+            payload.reward = parseInt(document.getElementById('new-task-reward').value) || 0;
+            payload.requires_ref = parseInt(document.getElementById('new-task-ref-req').value) || 0;
+            
+            if (!payload.name || payload.reward <= 0) {
+                showAlert("❌ টাস্কের নাম এবং রিওয়ার্ড দিন।", 'error');
+                return;
+            }
+        } else if (operation === 'delete') {
+            if (!confirm(`আপনি কি টাস্ক ID ${taskId} মুছে ফেলতে নিশ্চিত?`)) return;
+            payload.task_id = taskId;
+        }
+        
+        sendDataToBot('manage_task', payload);
+    }
+    
     // --- UTILITIES ---
     function showAlert(message, type) {
         const statusDiv = document.getElementById('status-message');
@@ -342,4 +447,4 @@
 </script>
 
 </body>
-  </html>
+</html>
