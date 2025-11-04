@@ -226,11 +226,21 @@ if (data.is_admin) {
 
             renderData(botData);
 
-        } catch (e) {
-            showAlert("বট থেকে প্রাপ্ত ডেটা ত্রুটিপূর্ণ।", 'error');
-            console.error("Data Parse Error:", e);
-        }
-    });
+        } 
+        tg.onEvent('onReceivedData', (data) => {
+    document.getElementById('loading').style.display = 'none';
+    
+    try {
+        const botData = JSON.parse(data.data);
+        // ... বাকি কোড ...
+        renderData(botData); // যদি এটি সফল হয়, তাহলে লোডিং দূর হবে
+    } catch (e) {
+        // যদি TBL থেকে আসা ডেটা JSON না হয়, তবে এই এররটি দেখাবে
+        showAlert("বট থেকে প্রাপ্ত ডেটা ত্রুটিপূর্ণ।", 'error'); 
+        console.error("Data Parse Error:", e);
+    }
+});
+    
 
     // --- RENDER DATA ---
     function renderData(data) {
