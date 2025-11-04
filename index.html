@@ -164,26 +164,8 @@
 </div>
 
 <script>
-// ... index.html এর renderData ফাংশনে
-// --- এডমিন ডেটা ---
-if (data.is_admin) {
-    isAdmin = true;
-    document.getElementById('admin-nav-btn').style.display = 'inline'; // এডমিন বাটন দেখাচ্ছে
-    // ... বাকি এডমিন রেন্ডারিং ...
-
-} else {
-    // যদি এডমিন না হয়, তাহলে এডমিন বাটন লুকিয়ে রাখুন
-    document.getElementById('admin-nav-btn').style.display = 'none'; 
-    
-    // এবং নিশ্চিত করুন যে ডিফল্ট ভিউ চালু আছে, admin ভিউ নয়
-    if (!document.querySelector('.view:visible')) {
-        showView('account'); 
-    }
-}
-
     const BOT_URL = "https://t.me/Telebothostwebbot?start="; 
     const tg = window.Telegram.WebApp;
-    const BOT_URL = tg.initDataUnsafe.start_param ? `https://t.me/${tg.initDataUnsafe.start_param.split(' ')[0]}?start=` : '';
     let isAdmin = false;
     let globalData = {}; 
 
@@ -195,7 +177,10 @@ if (data.is_admin) {
         document.querySelectorAll('.view').forEach(view => view.style.display = 'none');
         document.getElementById(viewId).style.display = 'block';
         document.querySelectorAll('.nav-button').forEach(btn => btn.classList.remove('active'));
-        document.querySelector(`[onclick="showView('${viewId}')"]`).classList.add('active');
+        const activeButton = document.querySelector(`[onclick="showView('${viewId}')"]`);
+        if (activeButton) {
+            activeButton.classList.add('active');
+        }
     }
 
     // --- DATA COMMUNICATION ---
@@ -209,6 +194,7 @@ if (data.is_admin) {
     
     tg.onEvent('onReceivedData', (data) => {
         document.getElementById('loading').style.display = 'none';
+        document.getElementById('nav-bar').style.display = 'flex';
         
         try {
             const botData = JSON.parse(data.data);
@@ -225,83 +211,87 @@ if (data.is_admin) {
             }
 
             renderData(botData);
-
-        } 
-        tg.onEvent('onReceivedData', (data) => {
-    document.getElementById('loading').style.display = 'none';
-    
-    try {
-        const botData = JSON.parse(data.data);
-        // ... বাকি কোড ...
-        renderData(botData); // যদি এটি সফল হয়, তাহলে লোডিং দূর হবে
-    } catch (e) {
-        // যদি TBL থেকে আসা ডেটা JSON না হয়, তবে এই এররটি দেখাবে
-        showAlert("বট থেকে প্রাপ্ত ডেটা ত্রুটিপূর্ণ।", 'error'); 
-        console.error("Data Parse Error:", e);
-    }
-});
-    
+        } catch (e) {
+            showAlert("বট থেকে প্রাপ্ত ডেটা ত্রুটিপূর্ণ।", 'error'); 
+            console.error("Data Parse Error:", e);
+        }
+    });
 
     // --- RENDER DATA ---
     function renderData(data) {
-        document.getElementById('nav-bar').style.display = 'flex';
+        if (!data) return;
         
-        const userInfo = data.user_info;
-        const settings = data.settings;
+        const userInfo = data.user_info || {};
+        const settings = data.settings || {};
 
-        document.getElementById('acc-user-id').textContent = userInfo.id;
-        document.getElementById('acc-coins').textContent = userInfo.coins;
-        document.getElementById('acc-referrals').textContent = userInfo.referrals;
-        document.getElementById('acc-ref-link').textContent = `${BOT_URL}${userInfo.id}`;
-        document.getElementById('lb-self-id').textContent = userInfo.id;
-        document.getElementById('lb-self-refs').textContent = userInfo.referrals;
+        document.getElementById('acc-user-id').textContent = userInfo.id || 'N/A';
+        document.getElementById('acc-coins').textContent = userInfo.coins || 0;
+        document.getElementById('acc-referrals').textContent = userInfo.referrals || 0;
+        document.getElementById('acc-ref-link').textContent = `${BOT_URL}${userInfo.id || ''}`;
+        document.getElementById('lb-self-id').textContent = userInfo.id || 'N/A';
+        document.getElementById('lb-self-refs').textContent = userInfo.referrals || 0;
 
-        renderTasksView(data.dynamic_tasks, userInfo);
+        if (data.dynamic_tasks) {
+            renderTasksView(data.dynamic_tasks, userInfo);
+        }
         
-        document.getElementById('min-withdraw-amount').textContent = settings.min_withdrawal;
-        document.getElementById('support-link').href = settings.support_link;
+        document.getElementById('min-withdraw-amount').textContent = settings.min_withdrawal || 0;
+        if (settings.support_link) {
+            document.getElementById('support-link').href = settings.support_link;
+        }
 
         if (data.is_admin) {
             isAdmin = true;
             document.getElementById('admin-nav-btn').style.display = 'inline';
             
-            document.getElementById('admin-ref-bonus').value = settings.referral_bonus;
-            document.getElementById('admin-min-withdraw').value = settings.min_withdrawal;
-            document.getElementById('admin-support-link').value = settings.support_link;
+            document.getElementById('admin-ref-bonus').value = settings.referral_bonus || 0;
+            document.getElementById('admin-min-withdraw').value = settings.min_withdrawal || 0;
+            document.getElementById('admin-support-link').value = settings.support_link || '';
             
-            renderAdminTasks(data.admin_data.dynamic_tasks);
-            renderWithdrawalRequests(data.admin_data.withdrawal_requests);
-            
-            const urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.get('view') === 'admin' && !document.querySelector('.view:visible')) {
-                showView('admin');
-            } else if (!document.querySelector('.view:visible')) {
-                showView('account');
+            if (data.admin_data) {
+                if (data.admin_data.dynamic_tasks) {
+                    renderAdminTasks(data.admin_data.dynamic_tasks);
+                }
+                if (data.admin_data.withdrawal_requests) {
+                    renderWithdrawalRequests(data.admin_data.withdrawal_requests);
+                }
             }
-        } else if (!document.querySelector('.view:visible')) {
+        } else {
+            document.getElementById('admin-nav-btn').style.display = 'none';
+        }
+        
+        // Show default view if none is visible
+        if (!document.querySelector('.view[style*="display: block"]')) {
             showView('account');
         }
     }
 
     function renderTasksView(tasks, userInfo) {
         const container = document.getElementById('task-list-container');
+        if (!container) return;
+        
         container.innerHTML = '';
         
+        if (!tasks || tasks.length === 0) {
+            container.innerHTML = '<p style="text-align: center;">কোনো টাস্ক পাওয়া যায়নি।</p>';
+            return;
+        }
+        
         tasks.forEach(task => {
-            const isDone = userInfo.tasks_status[task.id];
-            const canComplete = userInfo.referrals >= task.requires_ref;
+            const isDone = userInfo.tasks_status && userInfo.tasks_status[task.id];
+            const canComplete = userInfo.referrals >= (task.requires_ref || 0);
             
             let statusText = isDone ? '✅ সম্পন্ন' : '❌ বাকি';
             let buttonText = isDone ? 'প্রাপ্ত' : 'সম্পন্ন করুন';
             
             if (task.requires_ref > 0 && !isDone) {
-                statusText += ` (${task.requires_ref} রেফ. প্রয়োজন, আপনার ${userInfo.referrals})`;
+                statusText += ` (${task.requires_ref} রেফ. প্রয়োজন, আপনার ${userInfo.referrals || 0})`;
                 buttonText = canComplete ? 'সম্পন্ন করুন' : `রেফ. কম`;
             }
 
             container.innerHTML += `
                 <div class="stat-item" style="flex-wrap: wrap;">
-                    <span style="width: 100%; font-weight: bold; margin-bottom: 5px;">${task.name} (${task.reward} কয়েন)</span>
+                    <span style="width: 100%; font-weight: bold; margin-bottom: 5px;">${task.name || 'Unnamed Task'} (${task.reward || 0} কয়েন)</span>
                     <span class="stat-value" style="color: ${isDone ? 'green' : 'red'};">${statusText}</span>
                     <button 
                         class="nav-button" 
@@ -318,14 +308,21 @@ if (data.is_admin) {
     // --- ADMIN SPECIFIC RENDERING ---
     function renderAdminTasks(tasks) {
         const tbody = document.getElementById('admin-task-list');
+        if (!tbody) return;
+        
         tbody.innerHTML = '';
+        
+        if (!tasks || tasks.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">কোনো টাস্ক নেই।</td></tr>';
+            return;
+        }
         
         tasks.forEach(task => {
             const row = tbody.insertRow();
-            row.insertCell().textContent = task.id;
-            row.insertCell().textContent = task.name;
-            row.insertCell().textContent = task.reward;
-            row.insertCell().textContent = task.requires_ref;
+            row.insertCell().textContent = task.id || 'N/A';
+            row.insertCell().textContent = task.name || 'Unnamed Task';
+            row.insertCell().textContent = task.reward || 0;
+            row.insertCell().textContent = task.requires_ref || 0;
             
             const actionCell = row.insertCell();
             actionCell.innerHTML = `<button class="nav-button" style="padding: 3px 8px; background: red; color: white;" onclick="manageTask('delete', ${task.id})">মুছুন</button>`;
@@ -334,20 +331,22 @@ if (data.is_admin) {
     
     function renderWithdrawalRequests(requests) {
         const tbody = document.getElementById('admin-withdraw-requests');
+        if (!tbody) return;
+        
         tbody.innerHTML = '';
         
-        if (requests.length === 0) {
+        if (!requests || requests.length === 0) {
             tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">কোনো পেন্ডিং রিকোয়েস্ট নেই।</td></tr>';
             return;
         }
 
         requests.forEach((req, index) => {
             const row = tbody.insertRow();
-            row.insertCell().textContent = req.user_id;
-            row.insertCell().textContent = req.amount;
-            row.insertCell().textContent = req.method;
-            row.insertCell().textContent = req.address;
-            row.insertCell().textContent = req.status;
+            row.insertCell().textContent = req.user_id || 'N/A';
+            row.insertCell().textContent = req.amount || 0;
+            row.insertCell().textContent = req.method || 'N/A';
+            row.insertCell().textContent = req.address || 'N/A';
+            row.insertCell().textContent = req.status || 'Pending';
             
             const actionCell = row.insertCell();
             actionCell.innerHTML = `
@@ -358,19 +357,25 @@ if (data.is_admin) {
     }
     
     function renderUserStats(stats) {
+        const displayDiv = document.getElementById('user-stats-display');
+        if (!displayDiv || !stats) return;
+        
         const isBanned = stats.is_banned;
         
-        let taskListHtml = globalData.dynamic_tasks.map(task => {
-            const status = stats.tasks_status[task.id] ? '✅ Done' : '❌ Pending';
-            return `<div>** টাস্ক ID ${task.id} (${task.name}):** ${status}</div>`;
-        }).join('');
+        let taskListHtml = '';
+        if (globalData.dynamic_tasks) {
+            taskListHtml = globalData.dynamic_tasks.map(task => {
+                const status = stats.tasks_status && stats.tasks_status[task.id] ? '✅ Done' : '❌ Pending';
+                return `<div>** টাস্ক ID ${task.id} (${task.name}):** ${status}</div>`;
+            }).join('');
+        }
 
-        document.getElementById('user-stats-display').innerHTML = `
+        displayDiv.innerHTML = `
             <div class="panel">
-                <div class="stat-item"><span>ইউজার আইডি:</span> <span class="stat-value">${stats.id}</span></div>
-                <div class="stat-item"><span>বর্তমান কয়েন:</span> <span class="stat-value">${stats.coins}</span></div>
-                <div class="stat-item"><span>মোট রেফারেল:</span> <span class="stat-value">${stats.referrals}</span></div>
-                <div class="stat-item"><span>রেফারার আইডি:</span> <span class="stat-value">${stats.referrer_id}</span></div>
+                <div class="stat-item"><span>ইউজার আইডি:</span> <span class="stat-value">${stats.id || 'N/A'}</span></div>
+                <div class="stat-item"><span>বর্তমান কয়েন:</span> <span class="stat-value">${stats.coins || 0}</span></div>
+                <div class="stat-item"><span>মোট রেফারেল:</span> <span class="stat-value">${stats.referrals || 0}</span></div>
+                <div class="stat-item"><span>রেফারার আইডি:</span> <span class="stat-value">${stats.referrer_id || 'N/A'}</span></div>
                 <div class="stat-item"><span>ব্যান স্ট্যাটাস:</span> <span class="stat-value" style="color: ${isBanned ? 'red' : 'green'};">${isBanned ? '🚫 BANNED' : '✅ Active'}</span></div>
                 <div style="margin-top: 10px;">${taskListHtml}</div>
             </div>
@@ -464,10 +469,16 @@ if (data.is_admin) {
     // --- UTILITIES ---
     function showAlert(message, type) {
         const statusDiv = document.getElementById('status-message');
+        if (!statusDiv) return;
+        
         statusDiv.textContent = message;
         statusDiv.className = `alert ${type}`;
         statusDiv.style.display = 'block';
-        setTimeout(() => statusDiv.style.display = 'none', 5000);
+        setTimeout(() => {
+            if (statusDiv) {
+                statusDiv.style.display = 'none';
+            }
+        }, 5000);
     }
 
     // Initial Data Fetch
