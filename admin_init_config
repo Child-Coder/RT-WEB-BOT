@@ -1,0 +1,29 @@
+/* Command: /admin_init_config */
+
+// --- ১. গ্লোবাল সেটিংস ইনিশিয়ালাইজেশন ---
+// এই ডেটাগুলি এডমিন প্যানেল থেকে পরিবর্তন করা যাবে।
+let defaultSettings = {
+    referral_bonus: 50, // রেফারেল বোনাস (কয়েন)
+    min_withdrawal: 1000, // সর্বনিম্ন উইথড্রয়াল (কয়েন)
+    support_link: "https://t.me/YourSupportChannel" // আপনার সাপোর্ট চ্যানেলের লিংক
+};
+let settings = Bot.getProperty('settings') || {}; // যদি ইনিশিয়ালাইজ না করা হয়, তবে ত্রুটি হতে পারে।
+Bot.setProperty('settings', defaultSettings, 'JSON');
+
+// --- ২. ডাইনামিক টাস্ক লিস্ট ইনিশিয়ালাইজেশন ---
+// টাস্কের নাম, রিওয়ার্ড এবং রেফারেল শর্তাবলী (requires_ref) এখানে ডিফল্ট হিসেবে সেট করা হচ্ছে।
+Bot.setProperty('dynamic_tasks', [
+    { id: 1, name: "টেলিগ্রাম চ্যানেলে জয়েন করুন", reward: 100, requires_ref: 0 },
+    { id: 2, name: "৩ জন বন্ধুকে রেফার করুন", reward: 300, requires_ref: 3 }
+], 'JSON');
+
+// --- ৩. ব্যান লিস্ট ইনিশিয়ালাইজেশন ---
+// ব্লক করা ইউজারদের আইডি সংরক্ষণের জন্য
+Bot.setProperty('banned_users', [], 'JSON');
+
+// --- ৪. উইথড্রয়াল রিকোয়েস্ট লিস্ট ইনিশিয়ালাইজেশন ---
+// পেন্ডিং উইথড্রয়াল রিকোয়েস্ট সংরক্ষণের জন্য
+Bot.setProperty('withdrawal_requests', [], 'JSON');
+
+
+Bot.sendMessage("✅ ডিফল্ট এডমিন সেটিংস, টাস্ক এবং সিস্টেম লিস্ট সফলভাবে সেট করা হয়েছে।");
