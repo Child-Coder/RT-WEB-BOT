@@ -164,6 +164,22 @@
 </div>
 
 <script>
+// ... index.html এর renderData ফাংশনে
+// --- এডমিন ডেটা ---
+if (data.is_admin) {
+    isAdmin = true;
+    document.getElementById('admin-nav-btn').style.display = 'inline'; // এডমিন বাটন দেখাচ্ছে
+    // ... বাকি এডমিন রেন্ডারিং ...
+
+} else {
+    // যদি এডমিন না হয়, তাহলে এডমিন বাটন লুকিয়ে রাখুন
+    document.getElementById('admin-nav-btn').style.display = 'none'; 
+    
+    // এবং নিশ্চিত করুন যে ডিফল্ট ভিউ চালু আছে, admin ভিউ নয়
+    if (!document.querySelector('.view:visible')) {
+        showView('account'); 
+    }
+}
 
     const BOT_URL = "https://t.me/Telebothostwebbot?start="; 
     const tg = window.Telegram.WebApp;
