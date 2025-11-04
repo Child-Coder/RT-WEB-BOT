@@ -1,2 +1,2 @@
 # RT-WEB-BOT
-https://github.com/Child-Coder/RT-WEB-BOT
+https://Child-Coder.github.com/RT-WEB-BOT
